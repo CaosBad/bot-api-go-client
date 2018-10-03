@@ -14,7 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 )
-
+// time conf
 const keepAlivePeriod = 3 * time.Second
 const writeWait = 10 * time.Second
 const pongWait = 10 * time.Second
@@ -63,7 +63,7 @@ type TransferView struct {
 	Memo          string    `json:"memo"`
 	CreatedAt     time.Time `json:"created_at"`
 }
-
+// context of msg with flag chan
 type MessageContext struct {
 	transactions *tmap
 	readDone     chan bool
@@ -78,23 +78,24 @@ type systemConversationPayload struct {
 	UserId        string `json:"user_id,omitempty"`
 	Role          string `json:"role,omitempty"`
 }
-
+// listen  
 func Loop(ctx context.Context, listener MessageListener, uid, sid, key string) error {
-	conn, err := connectMixinBlaze(uid, sid, key)
+	conn, err := connectMixinBlaze(uid, sid, key) // connet server ws
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() // 关闭链接
 
-	mc := &MessageContext{
+	mc := &MessageContext{ // obj for msg transfer with write and read flag chan
 		transactions: newTmap(),
 		readDone:     make(chan bool, 1),
 		writeDone:    make(chan bool, 1),
 		readBuffer:   make(chan MessageView, 102400),
 		writeBuffer:  make(chan []byte, 102400),
 	}
-	go writePump(ctx, conn, mc)
-	go readPump(ctx, conn, mc)
+	go writePump(ctx, conn, mc) // write ws
+	go readPump(ctx, conn, mc)  // read ws
+	// reply msg to ws server
 	if err = writeMessageAndWait(ctx, mc, "LIST_PENDING_MESSAGES", nil); err != nil {
 		return BlazeServerError(ctx, err)
 	}
@@ -102,8 +103,8 @@ func Loop(ctx context.Context, listener MessageListener, uid, sid, key string) e
 		select {
 		case <-mc.readDone:
 			return nil
-		case msg := <-mc.readBuffer:
-			err = listener.OnMessage(ctx, mc, msg, uid)
+		case msg := <-mc.readBuffer:  // get all read content
+			err = listener.OnMessage(ctx, mc, msg, uid) // use MessageListener
 			if err != nil {
 				return err
 			}
@@ -159,7 +160,7 @@ func SendContact(ctx context.Context, mc *MessageContext, conversationId, recipi
 	}
 	return nil
 }
-
+// 发送 button 按钮
 func SendAppButton(ctx context.Context, mc *MessageContext, conversationId, recipientId, label, action, color string) error {
 	btns, err := json.Marshal([]interface{}{map[string]string{
 		"label":  label,
@@ -183,8 +184,9 @@ func SendAppButton(ctx context.Context, mc *MessageContext, conversationId, reci
 	return nil
 }
 
+// 链接 ws 服务
 func connectMixinBlaze(uid, sid, key string) (*websocket.Conn, error) {
-	token, err := SignAuthenticationToken(uid, sid, key, "GET", "/", "")
+	token, err := SignAuthenticationToken(uid, sid, key, "GET", "/", "")  // 加密授权验证
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +237,7 @@ func readPump(ctx context.Context, conn *websocket.Conn, mc *MessageContext) err
 		}
 	}
 }
-
+// recevie msg
 func writePump(ctx context.Context, conn *websocket.Conn, mc *MessageContext) error {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -260,7 +262,7 @@ func writePump(ctx context.Context, conn *websocket.Conn, mc *MessageContext) er
 		}
 	}
 }
-
+// send msg
 func writeMessageAndWait(ctx context.Context, mc *MessageContext, action string, params map[string]interface{}) error {
 	var resp = make(chan BlazeMessage, 1)
 	var id = UuidNewV4().String()
