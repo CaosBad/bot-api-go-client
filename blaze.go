@@ -14,20 +14,11 @@ import (
 
 	"github.com/gorilla/websocket"
 )
-<<<<<<< HEAD
-
-const (
-	keepAlivePeriod = 3 * time.Second
-	writeWait       = 10 * time.Second
-	pongWait        = 10 * time.Second
-	pingPeriod      = (pongWait * 9) / 10
-=======
 // time conf
 const keepAlivePeriod = 3 * time.Second
 const writeWait = 10 * time.Second
 const pongWait = 10 * time.Second
 const pingPeriod = (pongWait * 9) / 10
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 
 	createMessageAction = "CREATE_MESSAGE"
 )
@@ -74,13 +65,8 @@ type TransferView struct {
 	Memo          string    `json:"memo"`
 	CreatedAt     time.Time `json:"created_at"`
 }
-<<<<<<< HEAD
-
-type messageContext struct {
-=======
 // context of msg with flag chan
 type MessageContext struct {
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 	transactions *tmap
 	readDone     chan bool
 	writeDone    chan bool
@@ -94,45 +80,6 @@ type systemConversationPayload struct {
 	UserId        string `json:"user_id,omitempty"`
 	Role          string `json:"role,omitempty"`
 }
-<<<<<<< HEAD
-
-type BlazeClient struct {
-	mc  *messageContext
-	uid string
-	sid string
-	key string
-}
-
-type BlazeListener interface {
-	OnMessage(ctx context.Context, msg MessageView, userId string) error
-}
-
-func NewBlazeClient(uid, sid, key string) *BlazeClient {
-	client := BlazeClient{
-		mc: &messageContext{
-			transactions: newTmap(),
-			readDone:     make(chan bool, 1),
-			writeDone:    make(chan bool, 1),
-			readBuffer:   make(chan MessageView, 102400),
-			writeBuffer:  make(chan []byte, 102400),
-		},
-		uid: uid,
-		sid: sid,
-		key: key,
-	}
-	return &client
-}
-
-func (b *BlazeClient) Loop(ctx context.Context, listener BlazeListener) error {
-	conn, err := connectMixinBlaze(b.uid, b.sid, b.key)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	go writePump(ctx, conn, b.mc)
-	go readPump(ctx, conn, b.mc)
-	if err = writeMessageAndWait(ctx, b.mc, "LIST_PENDING_MESSAGES", nil); err != nil {
-=======
 // listen  
 func Loop(ctx context.Context, listener MessageListener, uid, sid, key string) error {
 	conn, err := connectMixinBlaze(uid, sid, key) // connet server ws
@@ -152,20 +99,14 @@ func Loop(ctx context.Context, listener MessageListener, uid, sid, key string) e
 	go readPump(ctx, conn, mc)  // read ws
 	// reply msg to ws server
 	if err = writeMessageAndWait(ctx, mc, "LIST_PENDING_MESSAGES", nil); err != nil {
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 		return BlazeServerError(ctx, err)
 	}
 	for {
 		select {
 		case <-b.mc.readDone:
 			return nil
-<<<<<<< HEAD
-		case msg := <-b.mc.readBuffer:
-			err = listener.OnMessage(ctx, msg, b.uid)
-=======
 		case msg := <-mc.readBuffer:  // get all read content
 			err = listener.OnMessage(ctx, mc, msg, uid) // use MessageListener
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 			if err != nil {
 				return err
 			}
@@ -221,13 +162,8 @@ func (b *BlazeClient) SendContact(ctx context.Context, conversationId, recipient
 	}
 	return nil
 }
-<<<<<<< HEAD
-
-func (b *BlazeClient) SendAppButton(ctx context.Context, conversationId, recipientId, label, action, color string) error {
-=======
 // 发送 button 按钮
 func SendAppButton(ctx context.Context, mc *MessageContext, conversationId, recipientId, label, action, color string) error {
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 	btns, err := json.Marshal([]interface{}{map[string]string{
 		"label":  label,
 		"action": action,
@@ -303,13 +239,8 @@ func readPump(ctx context.Context, conn *websocket.Conn, mc *messageContext) err
 		}
 	}
 }
-<<<<<<< HEAD
-
-func writePump(ctx context.Context, conn *websocket.Conn, mc *messageContext) error {
-=======
 // recevie msg
 func writePump(ctx context.Context, conn *websocket.Conn, mc *MessageContext) error {
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -333,13 +264,8 @@ func writePump(ctx context.Context, conn *websocket.Conn, mc *MessageContext) er
 		}
 	}
 }
-<<<<<<< HEAD
-
-func writeMessageAndWait(ctx context.Context, mc *messageContext, action string, params map[string]interface{}) error {
-=======
 // send msg
 func writeMessageAndWait(ctx context.Context, mc *MessageContext, action string, params map[string]interface{}) error {
->>>>>>> 6d97e9b44b8e5e4f8b521dc07bf4d6fc6efbff8b
 	var resp = make(chan BlazeMessage, 1)
 	var id = UuidNewV4().String()
 	mc.transactions.set(id, func(t BlazeMessage) error {
